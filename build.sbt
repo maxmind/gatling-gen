@@ -16,6 +16,9 @@ lazy val vandegraaf = crossProject.in(file(".")).
   jvmSettings(
   ).
   jsSettings(
+    persistLauncher in Compile := true,
+    persistLauncher in Test := false
+
   )
 
 lazy val vandegraafJVM = vandegraaf.jvm

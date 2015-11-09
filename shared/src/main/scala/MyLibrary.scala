@@ -1,3 +1,3 @@
 class MyLibrary {
-  def sq(x: Int): Int = x * x
+  def sq(x: Int): Int = x * x + 1
 }
