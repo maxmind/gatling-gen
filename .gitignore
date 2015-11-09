@@ -6,3 +6,6 @@
 dist/*
 target/
 project/plugins/project/
+.idea
+_Inline/
+
