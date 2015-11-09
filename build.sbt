@@ -9,10 +9,14 @@ lazy val root = project.in(file(".")).
 
 lazy val vandegraaf = crossProject.in(file(".")).
   settings(
+
     name := "vandegraaf",
     version := "0.1-SNAPSHOT",
     scalaVersion := "2.11.7",
+
     libraryDependencies += "com.lihaoyi" %% "utest" % "0.3.1",
+    libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.12.5" % "test",
+
     testFrameworks += new TestFramework("utest.runner.Framework")
   ).
   jvmSettings(
