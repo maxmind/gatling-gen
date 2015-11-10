@@ -20,7 +20,7 @@ my $source = join "\n", @sources;
 
 my $result = JavaScript::Duktape->new->eval($source);
 
-say "# Got: $result" if defined $result;
+say "# Duktape: $result" if defined $result;
 
 my $out = dir($compile_dir)->file("$js_project-duktape.js");
 $out->spew($source);
