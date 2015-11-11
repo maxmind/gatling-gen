@@ -57,5 +57,19 @@ object GeneratorTests extends TestSuite {
       // apply the functions to get a list
       for (_ ← 1 to 10) assertChildrenEqual(generators map { _ () })
     }
+
+    "RNG seed is split correctly" - {
+      var seed = new Seed(0)
+      var childA = seed.splitRng()
+      var childB = seed.splitRng()
+
+      var rand = (s:Seed) ⇒ s.rng.nextInt()
+      var (original, a, b) = (rand(seed), rand(childA), rand(childB))
+
+      assert(original != a)
+      assert(original != b)
+      assert(a != b)
+
+    }
   }
 }
