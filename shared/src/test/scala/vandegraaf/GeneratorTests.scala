@@ -13,8 +13,11 @@ object GeneratorTests extends TestSuite {
   def makeRng: Random = new Random(0)
 
   // a Choose generator ready to generate from an rng
-  def makeChooseGen(rng: Random) =
+  def makeChooseGen(rng: Random): Option[Int] =
     Gen.choose(1, 1000).apply(Parameters.default withRng rng)
+
+  def makeChooseGen2(rng: Random): Option[Int] =
+    Gen.choose(1, 1000).apply(Parameters.default)
 
   def assertChildrenEqual(parent: IndexedSeq[_]): Unit =
     assert(parent.distinct.size == 1)
@@ -38,8 +41,7 @@ object GeneratorTests extends TestSuite {
       val (common, cloned) = (generate(true), generate(false))
 
       // head is defined and same in both- both heads are 1st calls to RNG
-      assert(common.head.isDefined)
-      assert(common.head == cloned.head)
+      assert(common.head.isDefined, common.head == cloned.head)
 
       // entire cloned seq is same as head
       assertChildrenEqual(cloned)
@@ -59,12 +61,12 @@ object GeneratorTests extends TestSuite {
     }
 
     "RNG seed is split correctly" - {
-      var seed = new Seed(0)
-      var childA = seed.splitRng()
-      var childB = seed.splitRng()
+      val seed = new Seed(0)
+      val childA = seed.splitRng()
+      val childB = seed.splitRng()
 
-      var rand = (s:Seed) ⇒ s.rng.nextInt()
-      var (original, a, b) = (rand(seed), rand(childA), rand(childB))
+      val rand = (s:Seed) ⇒ s.rng.nextInt()
+      val (original, a, b) = (rand(seed), rand(childA), rand(childB))
 
       assert(original != a)
       assert(original != b)
