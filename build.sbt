@@ -15,7 +15,6 @@ lazy val vandegraaf = crossProject.in(file(".")).
     scalaVersion := "2.11.7",
 
     libraryDependencies += "com.lihaoyi" %% "utest" % "0.3.1" withSources() withJavadoc(),
-    libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.12.5" % "test" withSources() withJavadoc(),
 
     testFrameworks += new TestFramework("utest.runner.Framework")
   ).
