@@ -1,6 +1,6 @@
 # Scala.js cross compile example
 
-A library for generation of ata that is:
+A library for generation of data that is:
 
 * Random
 * Repeatable
