@@ -1,4 +1,4 @@
-package vandegraaf
+package com.maxmind.gatling.gen
 
 import nyaya.gen.Gen
 import utest._
@@ -30,16 +30,16 @@ object GenerationTests extends TestSuite {
 
   def gen(grain: ⇒ Grain): Matrix[Char] = gen { makeGen } { grain }
 
-  def assertContainer(allEqual: Boolean)(parentSeq: Matrix[_]): Unit = {
+  def assertSelfSimilarity(allEqual: Boolean)(parentSeq: Matrix[_]): Unit = {
     for (childSeq ← parentSeq) {
       val distinct = childSeq.distinct.size
       allEqual ? assert(distinct == 1) | assert(distinct != 1)
     }
   }
 
-  def assertAllEqual = assertContainer(allEqual = true) _
+  def assertSelfEqual = assertSelfSimilarity(allEqual = true) _
 
-  def assertSomeDistinct = assertContainer(allEqual = false) _
+  def assertSelfDistinct = assertSelfSimilarity(allEqual = false) _
 
   def tests = TestSuite {
 
@@ -72,23 +72,23 @@ object GenerationTests extends TestSuite {
 
         "∀g₁g₂∈G, g₁seed=g₂seed ⊃ g₁=g₂ ≡ same seeds ⊃ same generated" - {
           val generated = gen { Grain(12345) }
-          "Nth gen identical" - { assertAllEqual(generated) }
-          "Nth,Nth-1 gen distinct" - { assertSomeDistinct(generated.transpose) }
+          "Nth gen identical" - { assertSelfEqual(generated) }
+          "Nth,Nth-1 gen distinct" - { assertSelfDistinct(generated.transpose) }
         }
 
         "∀g₁g₂∈G, g₁seed≠g₂seed ⊃ g₁≠g₂ ≡ !same seeds ⊃ !same generated" - {
           val rootGrain = selfTestGrain
           val generated = gen { Grain(rootGrain) }
-          "Nth gen distinct" - { assertSomeDistinct(generated) }
-          "Nth,Nth-1 gen distinct" - { assertSomeDistinct(generated.transpose) }
+          "Nth gen distinct" - { assertSelfDistinct(generated) }
+          "Nth,Nth-1 gen distinct" - { assertSelfDistinct(generated.transpose) }
         }
 
         "∀g₁g₂∈G, g₁g₂∈Gᴾᵁᴿᴱ ⊃ g₁=g₂ ≡ pure gen ⊃ always constant" - {
           val rootGrain = selfTestGrain
           val generator = Gen pure 'd'
           val generated = gen { generator } { Grain(rootGrain) }
-          "Nth gen identical" - { assertAllEqual(generated) }
-          "Nth,Nth-1 gen identical" - { assertAllEqual(generated.transpose) }
+          "Nth gen identical" - { assertSelfEqual(generated) }
+          "Nth,Nth-1 gen identical" - { assertSelfEqual(generated.transpose) }
         }
       }
 
