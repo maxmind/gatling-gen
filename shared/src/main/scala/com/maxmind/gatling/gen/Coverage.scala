@@ -1,4 +1,4 @@
-package vandegraaf
+package com.maxmind.gatling.gen
 
 import nyaya.gen.{Gen, GenCtx}
 
