@@ -1,5 +1,6 @@
-package com.maxmind.gatling.gen
+package com.maxmind.gatling.gen.test
 
+import com.maxmind.gatling.gen.{Coverage, Grain}
 import nyaya.gen.Gen
 import utest._
 
