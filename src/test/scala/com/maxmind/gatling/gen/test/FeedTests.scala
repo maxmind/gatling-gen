@@ -1,6 +1,7 @@
 package com.maxmind.gatling.gen.test
 
 import com.maxmind.gatling.gen.{Coverage, Grain}
+import io.gatling.core.feeder.Feeder
 import nyaya.gen.Gen
 import utest._
 
@@ -10,9 +11,8 @@ object FeedTests extends TestSuite {
 
     // Gatling feeder is an iterator of maps, on each request pulls out a map
     // http://gatling.io/docs/2.0.0-RC2/session/feeder.html
-    type Feeder[T] = Iterator[Map[String, T]]
 
-    "builtin feeder" - {
+    "built-in feeder" - {
 
       var i = 0
       val iut: Feeder[Int] = Iterator continually { Map("foo" → { i += 1; i }) }
