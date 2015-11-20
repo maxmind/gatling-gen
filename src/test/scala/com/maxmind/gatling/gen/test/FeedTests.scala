@@ -5,6 +5,8 @@ import io.gatling.core.feeder.Feeder
 import nyaya.gen.Gen
 import utest._
 
+import scalaz.Scalaz._
+
 object FeedTests extends TestSuite {
 
   def tests = TestSuite {
@@ -15,11 +17,10 @@ object FeedTests extends TestSuite {
     "built-in feeder" - {
 
       var i = 0
-      val iut: Feeder[Int] = Iterator continually { Map("foo" → { i += 1; i }) }
+      val iut: Feeder[Int] = Iterator continually Map("foo" → { i += 1; i })
       val actual = (iut take 5 map (_ apply "foo")).mkString
 
-      val expected = "12345"
-      assert(actual == expected)
+      assert(actual == "12345")
     }
     "generated feeder" - {
 
@@ -29,11 +30,11 @@ object FeedTests extends TestSuite {
       ) yield Map("path" → path, "query" → query)
 
       val iut: Feeder[String] = Grain selfTest { generator }
-      val actual = ((iut take 2) map (m ⇒ m("path") + "?" + m("query"))).
-        reduceLeft(_ + "," + _).mkString
+      val actual = (
+        (iut take 2) map (m ⇒ m("path") + "?" + m("query"))
+        ).reduceLeft(_ + "," + _).mkString
 
-      val expected = "/searchEmail?HNL,/searchWeb?HFB"
-      assert(actual == expected)
+      assert(actual == "/searchEmail?HNL,/searchWeb?HFB")
     }
   }
 }
