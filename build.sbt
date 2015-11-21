@@ -7,10 +7,18 @@ scalaVersion := "2.11.7"
 
 autoScalaLibrary := true
 
-libraryDependencies += "com.github.japgolly.nyaya" %% "nyaya-test" % "0.6.0" withSources() withJavadoc()
-libraryDependencies += "com.github.japgolly.nyaya" %% "nyaya-prop" % "0.6.0" withSources() withJavadoc()
-libraryDependencies += "com.github.japgolly.nyaya" %% "nyaya-gen" % "0.6.0" withSources() withJavadoc()
-libraryDependencies += "com.lihaoyi" %% "utest" % "0.3.1" withSources() withJavadoc()
-libraryDependencies += "io.gatling.highcharts" % "gatling-charts-highcharts" % "2.1.7" withSources() withJavadoc()
+libraryDependencies += "com.github.scalaprops" %% "scalaprops" % "0.1.16" withSources() withJavadoc()
+libraryDependencies += "com.lihaoyi" % "ammonite-repl" % "0.4.9" cross CrossVersion.full withSources() withJavadoc()
+libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.1.5" withSources() withJavadoc()
 
-testFrameworks += new TestFramework("utest.runner.Framework")
+logBuffered in Test := false
+
+initialCommands in (Test, console) := """ammonite.repl.Repl.run("")"""
+
+testFrameworks += new TestFramework("scalaprops.ScalapropsFramework")
+
+parallelExecution in Test := false
+
+scalapropsSettings
+
+scalapropsVersion := "0.1.16"

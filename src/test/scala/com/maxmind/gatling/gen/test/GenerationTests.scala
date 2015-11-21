@@ -1,118 +1,94 @@
 package com.maxmind.gatling.gen.test
 
-import com.maxmind.gatling.gen.{Coverage, Grain}
-import nyaya.gen.Gen
-import utest._
-
+import scala.util.Random
+import scalaprops._
 import scalaz.Scalaz._
 
-object GenerationTests extends TestSuite {
+object GenerationTests extends Scalaprops {
 
-  type Matrix[T] = Seq[Seq[T]]
+  type Seed = Long
 
-  val (egN, egMin) = 10 → 'a'
-  val egMax        = egMin -+- egN.toChar.pred
-  val egRange      = egMin to egMax
-  val egPartRange  = egMin.succ to egMax
+  val defaultSize = 100
 
-  def selfTestGrain: Grain = Grain.selfTest
+  private def realSeed(): Seed = new Random().nextLong()
 
-  def makeGen: Gen[Char] = Gen chooseChar(egMin, egPartRange)
+  private def samples[T](gen: Gen[T])(seed: Seed): List[T] =
+    gen samples(defaultSize, defaultSize, seed)
 
-  def forN[T](thunk: => T): Seq[T] = (Seq fill egN)(thunk)
+  private val sampleInts: Seed ⇒ List[Int] = samples(Gen[Int])
 
-  def genN[T](grain: Grain, gen: Gen[T], count: Int = egN): Seq[T] =
-    (grain { gen } take count).toSeq
+  // A pair of seeds, sometimes equal sometimes not.
+  // Trivial property example- chars are always one char long.
+  private implicit def numCharGen: Gen[Char] =
+    Gen.genNumChar map { _.asInstanceOf[Char] }
 
-  // foreach egN gens, get a grain, gen egN values, materialize into a matrix
-  // and transpose so that each row is the result of one gen step from all gens
-  def gen[T](gen: ⇒ Gen[T])(grain: ⇒ Grain): Matrix[T] =
-    forN { genN(grain, gen) }.transpose
-
-  def gen(grain: ⇒ Grain): Matrix[Char] = gen { makeGen } { grain }
-
-  def assertSelfSimilarity(allEqual: Boolean)(parentSeq: Matrix[_]): Unit = {
-    for (childSeq ← parentSeq) {
-      val distinct = childSeq.distinct.size
-      allEqual ? assert(distinct == 1) | assert(distinct != 1)
-    }
+  val `∀c, c∈Char ⊃ ∣c∣=1` = Property.forAll {
+    c: Char ⇒ c.toString.length == 1
   }
 
-  def assertSelfEqual = assertSelfSimilarity(allEqual = true) _
+  /* For all generator=g, seed=s, and generation step=t,
+     If vₜ=g(s)ₜ is generated value at step t, and vₜ₋₁=g(s)ₜ₋₁ at step t-1,
+     Then vₜ and vₜ₋₁ are not correlated.
 
-  def assertSelfDistinct = assertSelfSimilarity(allEqual = false) _
+     Here we check only equality, i.e. ∀ g,s, if the series of generated values
+     is vs=v₀..vₜ₋₁, and if the distinct values of those are ds=vs.distinct,
+     then there exists an n big enough so that ∀t>n implies ds≠vs and ∣ds∣≠1.
 
-  def tests = TestSuite {
+     I.e. for a large enough gen count, the series of generated values will
+     never be all self equal nor all self distinct. At large gen counts, there
+     will always be some generated values that are equal, and some that are
+     distinct.
 
-    'basic - {
-      //    We will be generating tuples of Boolean and Char:
-      type GeneratedType = (Boolean, Char)
+     Because checking for ∃n is slow, we choose a large generation codomain that
+     guarantees we can safely switch the ∃ into a ∀. There will be many hardware
+     failures before a 100 identical integers are generated. Thus at Int*n=100
+     instead of checking there exists an n, we simply check for all n.
 
-      //    Our goal is to produce a sequence of 5 values from this type.
+     ∀g∈G, ∀s∈Seed ⇒ ∃n∈ℕ, vs=❴gen(s)ₜ∣t∈ℕ ∧ 0≤t<n-1❵, ∣vs∣≠∣vs.distinct∣≠1
 
-      // 1- Build a generator. E.g.: a tuple (Boolean, Char) as below.
-      val generator: Gen[GeneratedType] = for (
-        b ← Gen.boolean;
-        c ← Gen.chooseChar('a', 'b' to 'z')
-      ) yield (b, c)
+  */
+  val `generation steps are uncorrelated` =
+    Property.forAll { s: Seed ⇒ sampleInts(s).distinct.length != 1 }
 
-      // 2- Create a special grain (self-tests, standard tests), or a grain
-      // on a specific Long seed with Grain(intSeed):
-      val grain: Grain = Grain.standardTest
+  /* As in the "generated values are uncorrelated" property, we can safely
+     assert generated series will always be different between generators thanks
+     to the large generation codomain.
 
-      // 3- Run a block of generation code. This is the code where generation
-      //    takes place- from generator to materialized generated value.
-      val generated = (grain { generator } take 5).mkString
+     ∀g∈G, ∀s₀,s₁∈Seed, s₀≠s₁ ⇒ g(s₀)≠g(s₁) ∧ s₀=s₁ ⊃ g(s₀)=g(s₁)
+  */
+  val `same/different seeds ≡ same/different generators` =
 
-      assert(generated == "(false,j)(false,m)(false,y)(false,u)(true,w)")
+    val seedPairGen = Gen[(Seed, Seed)] map {
+      val sampleBooleans = samples(Gen.genBoolean) _
+      ss: (Seed, Seed) ⇒ (ss._1, sampleBooleans(realSeed()).head ? ss._1 | ss._2)
     }
 
-    'generation - {
-
-      'Grain - {
-
-        "∀g₁g₂∈G, g₁seed=g₂seed ⊃ g₁=g₂ ≡ same seeds ⊃ same generated" - {
-          val generated = gen { Grain(12345) }
-          "Nth gen identical" - { assertSelfEqual(generated) }
-          "Nth,Nth-1 gen distinct" - { assertSelfDistinct(generated.transpose) }
-        }
-
-        "∀g₁g₂∈G, g₁seed≠g₂seed ⊃ g₁≠g₂ ≡ !same seeds ⊃ !same generated" - {
-          val rootGrain = selfTestGrain
-          val generated = gen { Grain(rootGrain) }
-          "Nth gen distinct" - { assertSelfDistinct(generated) }
-          "Nth,Nth-1 gen distinct" - { assertSelfDistinct(generated.transpose) }
-        }
-
-        "∀g₁g₂∈G, g₁g₂∈Gᴾᵁᴿᴱ ⊃ g₁=g₂ ≡ pure gen ⊃ always constant" - {
-          val rootGrain = selfTestGrain
-          val generator = Gen pure 'd'
-          val generated = gen { generator } { Grain(rootGrain) }
-          "Nth gen identical" - { assertSelfEqual(generated) }
-          "Nth,Nth-1 gen identical" - { assertSelfEqual(generated.transpose) }
-        }
+    Property.forAllG(seedPairGen) {
+      ss: (Seed, Seed) ⇒ {
+        val (s0, s1) = ss
+        val (v0, v1) = (sampleInts(s0), sampleInts(s1))
+        (s0 == s1) ? (v0 == v1) | v0 != v1
       }
+    }
 
-      'Coverage {
+  /* Scalaz calls the constant gen pure gen or η, the greek letter theta.
 
-        def grain = selfTestGrain
-        val generator = Coverage(egMin, egPartRange: _*)
-        val generated = genN(grain, generator, count = egN * egN)
-        val expected = egRange
+     a∀η∈Gη, ∀s∈Seed ⇒ vs=❴η(s)ₜ∣t∈ℕ ∧ 0≤t<n-1❵, ∣vs.distinct∣=1
+   */
+  val `pure gen is constant` = Property.forAll {
+    val isSelfEqual =  (_: List[Int]).distinct.length == 1
+    (s: Seed, n: Int) ⇒ isSelfEqual((Gen.value(n) |> samples)(s))
+  }
 
-        "Coverage covers" - {
-          val actual = (generated take egN).sorted
-          assert(actual == expected)
-        }
-        "Coverage shuffles covered" - {
-          val actual = generated
-          assert(generated != expected)
-        }
-        "Coverage switches to Gen.choose" - {
-          val actual = (generated slice(egN, 2 * egN)).sorted
-          assert(actual != expected)
-        }
-      }
+  val `rng is immutable` = Property.forAll {
+    s: Seed ⇒ {
+      val rng = MersenneTwister64.standard(s)
+      val generate: Rand ⇒ List[Int] = r ⇒ samples(Gen.genIntAll)(r.nextInt._2)
+      val v1 = generate(rng)
+      (1 to defaultSize) foreach { _ ⇒ rng.nextInt } // try to mutate even more
+      val v2 = generate(rng)
+      v1 == v2
     }
   }
 }
+
