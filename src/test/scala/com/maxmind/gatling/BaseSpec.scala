@@ -1,36 +1,32 @@
 package com.maxmind.gatling
 
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Gen
+import org.specs2.ScalaCheck
 import org.specs2.matcher._
-import org.specs2.specification.core.Fragments
-import org.specs2.{ScalaCheck, Specification}
+import org.specs2.mutable.Specification
 
-trait BaseSpec extends Specification with ScalaCheck with Matchers {
+import scalaz.Scalaz._
+import scalaz._
 
-  val defaultSampleSize = SampleSize(100)
-
-  def is = isolated ^ innerIs
-
-  protected implicit def gen2Arb[T](g: Gen[T]): Arbitrary[T] = Arbitrary(g)
-
-  protected def samples[T](
-    g: Gen[T], size:SampleSize = defaultSampleSize): Seq[T] =
-    size samples g(Gen.Parameters.default).get
-
-  protected def distinctSamples[T](
-    g: Gen[T], size:SampleSize = defaultSampleSize): Seq[T] =
-    samples(g, size).distinct
-
-  protected def distinctSamplesBig[T](g: Gen[T]): Seq[T] =
-    distinctSamples(g, defaultSampleSize.incTenFold)
-
-  protected def innerIs: Fragments
+/* This sample size will be used when sampling from a generator.
+*/
+object SampleSize {
+  implicit val defaultSampleSizeImpicit = SampleSize(100)
 }
 
 case class SampleSize(size: Int) {
-  def samples[T](loopOver: ⇒ T): Seq[T] = for (_ ← 1 to size) yield loopOver
+  def sample[T](loopOver: ⇒ T): Seq[T] = for (_ ← 1 to size) yield loopOver
 
   def incTenFold: SampleSize = SampleSize(size * 10)
+}
+
+trait BaseSpec extends Specification with ScalaCheck with Matchers {
+
+  // Final flatten will remove any None values in the generated set, but we
+  // don't care because we don't use the Option feature of Gen.
+
+  protected def sampleSet[T](g: Gen[T])(implicit s: SampleSize): Set[T] =
+    (s sample g(Gen.Parameters.default)).toSet.flatten
 }
 
 

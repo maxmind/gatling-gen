@@ -8,4 +8,6 @@ target/
 project/plugins/project/
 .idea
 _Inline/
-
+ext/PracRand/RNG_output
+ext/PracRand/RNG_test
+random-bytes.tmp
