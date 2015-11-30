@@ -1,8 +1,3 @@
 # Gatling Genereator
 
-A library for generation of data that is:
-
-* Random
-* Repeatable
-* Exhaustive
-
+A library for generating random HTTP requests in a Gatling simultion.
