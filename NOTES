@@ -1,0 +1,28 @@
+package io.gatling.http
+
+object HeaderNames
+
+https://github.com/gatling/gatling/blob/master/gatling-http/src/main/scala/io/gatling/http/HttpDsl.scala
+
+https://github.com/gatling/gatling/blob/master/gatling-http/src/main/scala/io/gatling/http/util/BytesHelper.scala
+
+import io.netty.handler.codec.http.HttpHeaders
+
+package io.gatling.http.request
+
+https://github.com/gatling/gatling/blob/master/gatling-http/src/main/scala/io/gatling/http/request/builder/Http.scala
+
+
+https://github.com/gatling/gatling/blob/master/gatling-http/src/main/scala/io/gatling/http/request/builder/HttpParam.scala
+
+
+https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/util/random/XORShiftRandom.scala
+
+http://pracrand.sourceforge.net/installation.txt
+
+
+http://jrandtest.sourceforge.net/index.html
+
+range
+
+split multiply normal dist test
