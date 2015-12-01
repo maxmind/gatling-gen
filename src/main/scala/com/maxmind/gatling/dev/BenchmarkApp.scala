@@ -1,7 +1,8 @@
-package com.maxmind.gatling.rng
+package com.maxmind.gatling.dev
 
 import java.util.concurrent.ThreadLocalRandom
 
+import com.maxmind.gatling.rng.FakeRandom
 import org.scalacheck.Gen.Parameters
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalameter.{Bench, Gen ⇒ MeterGen}
@@ -17,7 +18,7 @@ import scalaz._
   * bench { counter: Int => myMeasuredFunction(counter) }
   *
   */
-object Benchmark extends Bench.LocalTime {
+object BenchmarkApp extends Bench.LocalTime {
 
   val stepInKiloSteps = 100
   val step            = stepInKiloSteps * 1000
