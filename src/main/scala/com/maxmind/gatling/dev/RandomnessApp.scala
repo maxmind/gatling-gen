@@ -1,25 +1,32 @@
-package com.maxmind.gatling.rng
+package com.maxmind.gatling.dev
 
 import java.io.{BufferedOutputStream, File, FileOutputStream}
 
 import ammonite.ops._
-import org.scalacheck.Gen
 import squants.storage.StorageConversions._
 
+import scala.language.reflectiveCalls
 import scala.sys.process._
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
+
 import scalaz.Scalaz._
 import scalaz._
+
+import org.scalacheck.Gen
 
 /**
   * Run PracRand randomness quality test suite in checkout dir.
   *
   * PracRand is from pracrand.sourceforge.net, written by Chris Doty-Humphrey.
   *
-  * First we run some sanity tests for the purpose asserting sample size is big
-  * enough and for calibrating the watermark, needed because Java standard RNGs
-  * do not pass 100% of the tests.
+  * First we run some sanity tests for:
+  *
+  * 1) Asserting sample size is big enough
+  * 2) Calibrating the watermark, needed because Java standard RNGs so not
+  * pass 100% of the tests.
+  *
+  * We run three types of sanity tests:
   *
   * 1) Best PracRand RNG is random when tested by PracRand
   * 2) Various kinds of fake randoms are not random
@@ -31,12 +38,12 @@ import scalaz._
   * 2) Combinators on Arbitrary[Byte] should maintain randomness
   */
 
-object Randomness extends App {
+object RandomnessApp extends App {
 
   // More than or equal to this number of passing tests is random enough.
   val minWaterMark = 72
 
-  val testSize      = 200D.megabytes
+  val testSize      = 1500D.megabytes
   // Gen size must be larger than test size, or PracRand will core dump.
   val genSize       = testSize + testSize / 10
   val toolPath      = cwd / 'ext / 'PracRand
@@ -56,8 +63,7 @@ object Randomness extends App {
 
   def runTests() = {
 
-    run(shouldSucceed = true)("self-test", selfTester.toString + " " +
-      genSizer)
+    run(shouldSucceed = true)("self-test", selfTester.toString + " " + genSizer)
 
     shouldFail("constant generator") { _ ⇒ Array.fill(batch)(123: Byte) }
 
@@ -65,50 +71,66 @@ object Randomness extends App {
       val gen: Array[Byte] = ((1 to batch) map { i ⇒ (i + 3).toByte })
         .toArray
       (i: Int) ⇒ gen map { (j: Int) ⇒ (j + i).toByte }
-    } apply())
+    } apply ())
 
     shouldSucceed("java.util.Random")({ () ⇒
       val (rng, bytes) = (new Random(), new Array[Byte](batch))
       (_: Int) ⇒ { rng nextBytes bytes; bytes }
-    } apply())
+    } apply ())
 
-    seededFromParentTest("java.util.Random: 1000 seeded from 1") {
-      (rng: Random) ⇒ rng nextLong()
+    shouldFail("ScalaCheck 1.12.5 generates bytes like this")({ () ⇒
+      val rng = new Random()
+      val nextLong = () ⇒ rng nextLong ()
+      val (h, l) = (Byte.MaxValue, Byte.MinValue)
+      val d = h - l + 1 // 256
+
+      val longToByte: Long ⇒ Byte = n ⇒ (l + Math.abs(n % d)).toByte
+      (_: Int) ⇒ (Array fill batch) { longToByte(nextLong()) }
+    } apply ())
+
+    {
+      seededFromParentTest("java.util.Random: 1000 seeded from 1") {
+        (rng: Random) ⇒ rng nextLong ()
+      }
+
+      seededFromParentTest("java.util.Random: 1000 seeded from 1 with hashing")
+      {
+        (rng: Random) ⇒
+          val makeInt: () ⇒ Array[Byte] = { () ⇒
+            val bytes = new Array[Byte](4)
+            rng nextBytes bytes
+            bytes
+          }
+          val hashInt: () ⇒ Int = () ⇒ MurmurHash3.bytesHash(makeInt())
+          val (a, b) = (hashInt(), hashInt())
+          (a << 32) | (b & 0xFFFFFFFFL)
+      }
+
+      def seededFromParentTest(name: String)(seeder: Random ⇒ Long): Unit = {
+        val root = new Random()
+        val rngs = (1 to batch) map { _ ⇒ new Random(seeder(root)) }
+        val bytes = new Array[Byte](2)
+        val circular = (Stream continually { rngs.toStream }).flatten
+
+        shouldFail(name)({ () ⇒
+          (_: Int) ⇒ { (circular take 1).head nextBytes bytes; bytes }
+        } apply ())
+      }
     }
 
-    seededFromParentTest("java.util.Random: 1000 seeded from 1 with hashing") {
-      (rng: Random) ⇒
-        val makeInt: () ⇒ Array[Byte] = { () ⇒
-          val bytes = new Array[Byte](4)
-          rng nextBytes bytes
-          bytes
-        }
-        val hashInt: () ⇒ Int = () ⇒ MurmurHash3.bytesHash(makeInt())
-        val (a, b) = (hashInt(), hashInt())
-        (a << 32) | (b & 0xFFFFFFFFL)
+    {
+      def arbByte = Gen.Choose.chooseByte choose (Byte.MinValue, Byte.MaxValue)
+      val params = Gen.Parameters.default
+
+      shouldSucceed("Arbitrary[byte]")({ () ⇒
+        (_: Int) ⇒ (Array fill batch) { arbByte(params).get }
+      } apply ())
+
+      shouldSucceed("Arbitrary[byte] with combinators")({ () ⇒
+        val gen = for {x ← arbByte; y ← arbByte; z ← Gen.oneOf(x, y)} yield z
+        (_: Int) ⇒ (Array fill batch) { gen.sample.get }
+      } apply ())
     }
-
-    shouldSucceed("Arbitrary[byte]")({ () ⇒
-      val gen = Gen.chooseNum(Byte.MinValue, Byte.MaxValue)
-      (_: Int) ⇒ (Array fill batch) { gen.sample.get }
-    } apply())
-
-    shouldSucceed("Arbitrary[byte] with combinators")({ () ⇒
-      val arb = Gen.chooseNum(Byte.MinValue, Byte.MaxValue)
-      val gen = for {x ← arb; y ← arb; z ← Gen.oneOf(x, y)} yield z
-      (_: Int) ⇒ (Array fill batch) { gen.sample.get }
-    } apply())
-  }
-
-  def seededFromParentTest(name: String)(seeder: Random ⇒ Long): Unit = {
-    val root = new Random()
-    val rngs = (1 to batch) map { _ ⇒ new Random(seeder(root)) }
-    val bytes = new Array[Byte](1)
-    val circle = (Stream continually { rngs.toStream }).flatten
-
-    shouldFail(name)({ () ⇒
-      (_: Int) ⇒ { (circle take 1).head nextBytes bytes; bytes }
-    } apply())
   }
 
   def runTest(shouldSucceed: Boolean)(name: String)
@@ -127,9 +149,9 @@ object Randomness extends App {
       left -= bytes.length
       i += 1
     }
-    w close()
+    w close ()
 
-    run(shouldSucceed)(name, fileTester toString())
+    run(shouldSucceed)(name, fileTester toString ())
   }
 
   def run(shouldSucceed: Boolean)(name: String, cmd: String): Unit = {
@@ -145,8 +167,9 @@ object Randomness extends App {
 
     val (outLog, errLog) = (logger, logger)
     val exitValue = Process(cmd + " " + testSizer) run ProcessLogger(
-      outLog.add, errLog.add) exitValue()
-    if (exitValue != 0 || !errLog.sb.toString.isEmpty) throw new Exception(
+      outLog.add, errLog.add) exitValue ()
+
+    assert(exitValue != 0 || !errLog.sb.toString.isEmpty,
       s"Error in $cmd: exitValue=$exitValue stderr=${ errLog.sb.toString }")
 
     val out = outLog.sb.toString
