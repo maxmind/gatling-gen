@@ -15,7 +15,7 @@ test in assembly := {}
 assemblyMergeStrategy in assembly := {
     case PathList("org", "scalatools", xs @ _*) => MergeStrategy.first
     case PathList(ys @ _*) if ys contains "derive" => MergeStrategy.first
-    case PathList("org", "threeten", "bp", zs @ _*) => MergeStrategy.first
+    case PathList("org", "threeten", "bp", zs @ _*) => MergeStrategy.discard
     case x => val oldStrategy = (assemblyMergeStrategy in assembly).value
               oldStrategy(x)
 }
