@@ -3,6 +3,7 @@ package com.maxmind.gatling.app
 import java.util.Date
 
 import ammonite.ops._
+
 import scala.sys.process._
 
 import io.gatling.app.GatlingStatusCodes
@@ -10,76 +11,34 @@ import io.gatling.app.GatlingStatusCodes
 import scalaz.Scalaz._
 import scalaz._
 
+import com.maxmind.gatling.app.RunnerConfig.{Quiet, Verbose, Verbosity}
+
 /**
   * A gatling simulation runner.
+  *
+  * It is not trivial because gatling requires a results dir, and because
+  * each simulation requires a fresh JVM so cannot be run programmatically.
+  * Each simulation must be started in a new Java OS process.
   */
 object Runner {
-  def apply(
-    baseDir: Path = cwd / "sim-results",
-    classPath: String = null,
-    description: String = new Date().toString,
-    name: String = null,
-    simClassName: String
-  ): Runner = {
-
-    val defaultBinDir = cwd / 'target / "scala-2.11"
-    val defaultPackageJar = defaultBinDir / "gatlinggen.jar"
-
-    prepareBaseDir(baseDir)
-
-    val fixedName =
-      (name == null) ? (simClassName ++ ":" ++ description) | name
-
-    val fixedClassPath =
-      (classPath == null) ? defaultPackageJar.toString | classPath
-
-    new Runner(
-      baseDir,
-      fixedClassPath,
-      description,
-      fixedName,
-      simClassName
-    )
-  }
-
-  def prepareBaseDir(baseDir: Path): Unit = {
-
-    if (exists ! baseDir) {
-      val baseStat = stat ! baseDir
-      assume(!baseStat.isFile, { s"There is a file at $baseDir" })
-    } else {
-      mkdir ! baseDir
-    }
-    assert((stat ! baseDir).isDir, { s"There is no dir at $baseDir" })
+  def apply(conf: RunnerConfig): Runner = {
+    conf prepareOutDir ()
+    new Runner(conf)
   }
 }
 
-class Runner(
-  baseDir: Path,
-  classPath: String,
-  description: String,
-  name: String,
-  simClassName: String
-) {
+class Runner(conf: RunnerConfig) {
 
-  lazy val args = Array[String](
-    "--output-name", name,
-    "--results-folder", baseDir.toString,
-    "--run-description", description,
-    "--simulation", simClassName
-  )
+  def run(baseUrl: Option[String] = None): (Boolean, String) = {
 
-  def run(baseUrl: String): (Boolean, String) = {
+    val fullConf = baseUrl.isDefined ? (conf withBaseUrl baseUrl.get) | conf
+    val (args, env) = (conf.asArgs, conf.asEnv)
 
-    val command: Seq[String] =
-      Seq("gatling") ++ (args.toSeq map { (s: String) ⇒ s.replace(' ', '_')})
+    conf log "Running gatling CLI:"
+    conf log s"\t${ args mkString " " }"
+    conf log s"\t${ env mkString " " }"
 
-    val process = Process(
-      command,
-      None,
-      "JAVA_CLASSPATH" → classPath,
-      "JAVA_OPTS" → ("-DbaseUrl=" ++ baseUrl)
-    )
+    val process = Process(args, None, env: _*)
 
     process.! match {
 
@@ -96,3 +55,76 @@ class Runner(
     }
   }
 }
+
+object RunnerConfig {
+
+  sealed trait Verbosity
+  case object Quiet extends Verbosity
+  case object Verbose extends Verbosity
+
+  lazy val stubDirClassesRel: RelPath = 'target / "test-classes"
+  lazy val stubDirLibRel: RelPath = 'lib
+
+  lazy val pwd          = cwd
+  lazy val baseUrl      = "http://localhost:80"
+  lazy val jarFileDef   = pwd / 'target / "scala-2.11" / "gatlinggen.jar"
+  lazy val outDirOptA   = pwd / "sim-results"
+  lazy val outDirOptB   = Path(Path.makeTmp)
+  lazy val outDirDef    = (exists ! outDirOptA) ? outDirOptA | outDirOptB
+  lazy val runnerShDef  = pwd / 'dev / "gatling.sh"
+  lazy val simNameDef   = "anonymous simulation " ++ new Date().toString
+  lazy val simDescDef   = simNameDef ++ " description"
+  lazy val verbosityDef = Verbose
+}
+
+case class RunnerConfig(
+  simClassName: String,
+
+  baseUrl: String = RunnerConfig.baseUrl,
+  jarFile: Path = RunnerConfig.jarFileDef,
+  outDir: Path = RunnerConfig.outDirDef,
+  runnerSh: Path = RunnerConfig.runnerShDef,
+  simName: String = RunnerConfig.simNameDef,
+  simDesc: String = RunnerConfig.simDescDef,
+  verbosity: Verbosity = RunnerConfig.verbosityDef
+) {
+
+  lazy val isQuiet = verbosity match {
+    case Quiet   ⇒ true
+    case Verbose ⇒ false
+  }
+
+  def withBaseUrl(u: String): RunnerConfig = this copy (baseUrl = u)
+
+  def prepareOutDir(): Unit = {
+    mkdir ! outDir
+    assert((stat ! outDir).isDir, { s"There is no dir at $outDir" })
+
+    // Used as Gatling home dir, so need to create some fake dirs or else the
+    // gateling file searching code will throw.
+    for (stubDirRel ← Seq(
+      RunnerConfig.stubDirClassesRel,
+      RunnerConfig.stubDirLibRel
+    )) { { outDir / stubDirRel } <| { mkdir ! (_: Path) } } <| {
+       (d: Path) ⇒ assert( (stat ! d).isDir, { s"There is no dir at $d" })
+     }
+    }
+
+  lazy val asArgs: Seq[String] = Seq(
+    runnerSh.toString,
+    "--output-name", simName,
+    "--results-folder", outDir.toString,
+    "--run-description", simDesc,
+    "--simulation", simClassName.toString
+  ) map { _.replace(' ', '_') } map { _.replace(':', '-') }
+
+  lazy val asEnv: Seq[(String, String)] = Seq(
+    "JAVA_CLASSPATH" → jarFile.toString,
+    "JAVA_OPTS" → ("-DbaseUrl=" ++ baseUrl),
+    "GATLING_HOME" → outDir.toString
+  )
+
+  def log(msg: String): Unit = if (!isQuiet) println("# " ++ msg)
+}
+
+

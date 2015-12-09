@@ -50,5 +50,4 @@ trait BaseSpec extends Specification
 
   def haveSizeN[T](implicit s: SampleSize): Matcher[Traversable[T]] =
     haveSize(s)
-
 }
