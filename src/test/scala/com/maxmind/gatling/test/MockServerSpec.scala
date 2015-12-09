@@ -3,7 +3,8 @@ package com.maxmind.gatling.test
 import scalaz.Scalaz._
 import scalaz._
 
-import com.maxmind.gatling.test.MockServer.HttpResult
+import com.maxmind.gatling.dev.MockServer
+import MockServer.HttpResult
 
 class MockServerSpec extends BaseSpec {
 
@@ -23,10 +24,9 @@ class MockServerSpec extends BaseSpec {
     val result: HttpResult = agent doGet "/ping"
 
     // Assert a success response with body "pong" and save it.
-    val matches =
-      (result.ok must beTrue) and (result.body must_== "pong")
+    val matches = (result.ok must beTrue) and (result.body must_== "pong")
 
-    // Stop mockver.
+    // Stop mock server.
     server stop ()
 
     // A successful server stop is not our assertion, so recall "matches".
@@ -34,6 +34,7 @@ class MockServerSpec extends BaseSpec {
   }
 
   "• Server control" >> {
+    import org.specs2.matcher.ContainWithResultSeq
 
     lazy val fixedPort = freshPort()
 
@@ -46,11 +47,10 @@ class MockServerSpec extends BaseSpec {
 
     "⋅ Start/stop" >> startStop()
 
-    "⋅ Start/stop repeat" >>
-      { (this fillN { startStop() }) must contain(allOf(beTrue)) }
+    "⋅ Start/stop repeat" >> { (this fillN { startStop() }) must beAllTrue }
 
     "⋅ Start/stop repeat on same port- shows ports are being freed" >>
-      { (this fillN { startStop(fixedPort) }) must contain(allOf(beTrue)) }
+      { (this fillN { startStop(fixedPort) }) must beAllTrue }
   }
 
   EndpointsAndAgentsSpec().tests

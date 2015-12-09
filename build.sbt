@@ -3,7 +3,7 @@ val projectName                     = "gatlinggen"
 val companyName                     = "MaxMind"
 val projectVersion                  = "0.9-SNAPSHOT"
 val projectPackage                  = s"com.${ companyName.toLowerCase }.$projectName"
-val simLauncher                     = Some(s"$projectPackage.dev.SimulationLauncherApp")
+val simLauncher                     = Some(s"$projectPackage.simulation.gensim.GenSimLauncherApp")
 val opts                            = Seq("-Yrangepos", "-feature", "-unchecked", "-deprecation", "-encoding", "utf8")
 val scalaSdkVersion                 = "2.11.7"
 val akkaV                           = "2.3.9"
@@ -37,17 +37,19 @@ libraryDependencies                += "io.spray"                   %% "spray-rou
 libraryDependencies                += "io.spray"                   %% "spray-json"                % "1.3.2"                             withSources() withJavadoc()
 libraryDependencies                += "org.scalacheck"             %% "scalacheck"                % "1.12.5"                            withSources() withJavadoc()
 libraryDependencies                += "org.scalaz"                 %% "scalaz-core"               % "7.1.5"                             withSources() withJavadoc()
+libraryDependencies                += "com.github.melrief"         %% "pureconfig"                % "0.1.4"                             withSources() withJavadoc()
+
+libraryDependencies                += "org.specs2"                 %% "specs2-core"               % "3.6.5"                             withSources() withJavadoc()
+libraryDependencies                += "org.specs2"                 %% "specs2-scalacheck"         % "3.6.5"                             withSources() withJavadoc()
+libraryDependencies                += "org.specs2"                 %% "specs2-html"               % "3.6.5"                             withSources() withJavadoc()
+libraryDependencies                += "org.specs2"                 %% "specs2-matcher-extra"      % "3.6.5"                             withSources() withJavadoc()
 
 scalacOptions in Test              ++= opts
 test in assembly                   := {}
 publishArtifact in Test            := true
-parallelExecution in Test          := true
+parallelExecution in Test          := false
 testOptions in Test                += Tests.Argument(TestFrameworks.Specs2, "html", "console")
 logBuffered in Test                := true
-libraryDependencies                += "org.specs2"                 %% "specs2-core"               % "3.6.5"                % "test"     withSources() withJavadoc()
-libraryDependencies                += "org.specs2"                 %% "specs2-scalacheck"         % "3.6.5"                % "test"     withSources() withJavadoc()
-libraryDependencies                += "org.specs2"                 %% "specs2-html"               % "3.6.5"                % "test"     withSources() withJavadoc()
-libraryDependencies                += "org.specs2"                 %% "specs2-matcher-extra"      % "3.6.5"                % "test"     withSources() withJavadoc()
 
 assemblyMergeStrategy in assembly := {
     case PathList("org", "scalatools", xs @ _*) => MergeStrategy.first

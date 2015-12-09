@@ -1,19 +1,16 @@
 package com.maxmind.gatling.dev
 
-import java.io.{BufferedOutputStream, File, FileOutputStream}
-
 import ammonite.ops._
-import squants.storage.StorageConversions._
-
+import java.io.{BufferedOutputStream, File, FileOutputStream}
+import org.scalacheck.Gen
 import scala.language.reflectiveCalls
 import scala.sys.process._
 import scala.util.Random
 import scala.util.hashing.MurmurHash3
-
+import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
-
-import org.scalacheck.Gen
+import squants.storage.StorageConversions._
 
 /**
   * Run PracRand randomness quality test suite in checkout dir.
@@ -41,7 +38,7 @@ import org.scalacheck.Gen
 object RandomnessApp extends App {
 
   // More than or equal to this number of passing tests is random enough.
-  val minWaterMark = 72
+  val minPass = 72
 
   val testSize      = 1500D.megabytes
   // Gen size must be larger than test size, or PracRand will core dump.
@@ -50,26 +47,25 @@ object RandomnessApp extends App {
   val selfTester    = toolPath / "self-test.sh"
   val fileTester    = toolPath / "rng-test-from-file.sh"
   val tmpFile       = toolPath / "random-bytes.tmp"
-  val testOkRegex   = "no anomalies in".r
-  val testWarnRegex = """and (\d+) test result\(s\) without anomalies""".r
+  val okRegex       = "no anomalies in".r
+  val warnRegex     = """and (\d+) test result\(s\) without anomalies""".r
   val batch         = 1000
   // PracRand test unit is 2^ de facto (mebibyte) not decimal SI (megabyte).
   val testSizer     = testSize.toMebibytes.toInt.toString + "MB"
   val genSizer      = genSize.toBytes.toInt.toString
-  val shouldSucceed = runTest(shouldSucceed = true) _
-  val shouldFail    = runTest(shouldSucceed = false) _
+  val shouldSucceed = runTest(expect = true) _
+  val shouldFail    = runTest(expect = false) _
 
   runTests()
 
   def runTests() = {
 
-    run(shouldSucceed = true)("self-test", selfTester.toString + " " + genSizer)
+    runCommand(expect = true)("self-test", selfTester.toString + " " + genSizer)
 
     shouldFail("constant generator") { _ ⇒ Array.fill(batch)(123: Byte) }
 
     shouldFail(s"$batch linear generators")({ () ⇒
-      val gen: Array[Byte] = ((1 to batch) map { i ⇒ (i + 3).toByte })
-        .toArray
+      val gen: Array[Byte] = ((1 to batch) map { i ⇒ (i + 3).toByte }).toArray
       (i: Int) ⇒ gen map { (j: Int) ⇒ (j + i).toByte }
     } apply ())
 
@@ -93,14 +89,9 @@ object RandomnessApp extends App {
         (rng: Random) ⇒ rng nextLong ()
       }
 
-      seededFromParentTest("java.util.Random: 1000 seeded from 1 with hashing")
-      {
+      seededFromParentTest("java.util.Random: 1000 seeded from 1 with hashing") {
         (rng: Random) ⇒
-          val makeInt: () ⇒ Array[Byte] = { () ⇒
-            val bytes = new Array[Byte](4)
-            rng nextBytes bytes
-            bytes
-          }
+          val makeInt: () ⇒ Array[Byte] = () ⇒ { new Array[Byte](4) } ◃ rng.nextBytes
           val hashInt: () ⇒ Int = () ⇒ MurmurHash3.bytesHash(makeInt())
           val (a, b) = (hashInt(), hashInt())
           (a << 32) | (b & 0xFFFFFFFFL)
@@ -112,8 +103,7 @@ object RandomnessApp extends App {
         val bytes = new Array[Byte](2)
         val circular = (Stream continually { rngs.toStream }).flatten
 
-        shouldFail(name)({ () ⇒
-          (_: Int) ⇒ { (circular take 1).head nextBytes bytes; bytes }
+        shouldFail(name)({ () ⇒ { (_: Int) ⇒ bytes ◃ (circular take 1).head.nextBytes }
         } apply ())
       }
     }
@@ -133,12 +123,12 @@ object RandomnessApp extends App {
     }
   }
 
-  def runTest(shouldSucceed: Boolean)(name: String)
-    (code: Int ⇒ Array[Byte]) = {
+  def runTest(expect: Boolean)(name: String)(code: Int ⇒ Array[Byte]) = {
+
+    val w: BufferedOutputStream = tmpFile.toString ▹ { new File(_) } ▹
+      { new FileOutputStream(_) } ▹ { new BufferedOutputStream(_) }
+
     color(name, Console.MAGENTA + s"generating $testSizer + 10%")
-    val w =
-      new BufferedOutputStream(
-        new FileOutputStream(new File(tmpFile.toString)))
 
     // We don't mind if the file is a bit too big, so we ignore the remainder.
     var i = 0
@@ -151,42 +141,49 @@ object RandomnessApp extends App {
     }
     w close ()
 
-    run(shouldSucceed)(name, fileTester toString ())
+    runCommand(expect)(name, fileTester toString ())
   }
 
-  def run(shouldSucceed: Boolean)(name: String, cmd: String): Unit = {
-    def logger = new {
+  def runCommand(expect: Boolean)(name: String, cmd: String): Unit = {
+
+    // TODO
+    def logger() = new {
       val sb                 = new StringBuffer
-      val add: String ⇒ Unit = { s: String ⇒
-        sb append (s + '\n')
-        println("#       " + s)
+      val add: String ⇒ Unit = { s ⇒
+        s ◃ { s ⇒ sb append (s + '\n') } ◃ { s ⇒ println("#       " + s) }
       }
     }
 
     color(name, Console.MAGENTA + s"testing $testSizer")
 
-    val (outLog, errLog) = (logger, logger)
+    val (outLog, errLog) = (logger(), logger())
     val exitValue = Process(cmd + " " + testSizer) run ProcessLogger(
       outLog.add, errLog.add) exitValue ()
 
-    assert(exitValue != 0 || !errLog.sb.toString.isEmpty,
-      s"Error in $cmd: exitValue=$exitValue stderr=${ errLog.sb.toString }")
+    // Die unless: ❨ (exitCode = 0) ∧ (errorLog = ∅) ❩
+    assert(
+      exitValue == 0 || errLog.sb.toString.isEmpty,
+      s"Error in $cmd: exitValue=$exitValue stderr=${ errLog.sb.toString }"
+    )
 
-    val out = outLog.sb.toString
-    val (isOk, warning) = if ((testOkRegex findFirstIn out).nonEmpty) {
-      (shouldSucceed, None)
-    } else {
-      val warn = (testWarnRegex findFirstMatchIn out) map { _ group 1 }
-      if (warn.isDefined) {
-        val failCount = warn.get.toInt
-        (shouldSucceed == (failCount >= minWaterMark), failCount.some)
-      } else {
-        (!shouldSucceed, None)
-      }
-    }
-    color(name, isOk ? (Console.GREEN + "OK") | (Console.RED + "FAIL"))
-    if (warning.isDefined) color(
-      name, "tests passed=" + Console.YELLOW + Console.BLACK_B + warning.get)
+
+    // Grep stdout log for "total OK" and "partial OK" messages, deduce if rng is OK with:
+    // ❨ (total OK msg) ∨ (partial OK msg ∧ OK# > minPass) ❩ ⊃ (rng OK)
+
+    val okMatch :: warnMatch :: Nil =
+      List(okRegex, warnRegex) ∘ { _ findFirstMatchIn outLog.sb.toString }
+
+    {
+      {
+        okMatch.nonEmpty ? expect | {
+          warnMatch ∘ { (p: Regex.Match) ⇒ p group 1 } match {
+            case None        ⇒ !expect
+            case Some(count) ⇒ expect == (count.toInt >= minPass)
+          }
+        }
+      } ? s"${ Console.GREEN }OK" | s"${ Console.RED }FAIL"
+    } ▹ { color(name, _) }
+
   }
 
   def color(s1: String, s2: String) =

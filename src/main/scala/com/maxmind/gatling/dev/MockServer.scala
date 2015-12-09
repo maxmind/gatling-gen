@@ -1,41 +1,35 @@
-package com.maxmind.gatling.test
-
-import java.net.ServerSocket
-
-import scala.collection.mutable
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+package com.maxmind.gatling.dev
 
 import akka.actor._
 import akka.io.IO
 import akka.pattern._
 import akka.util.Timeout
-import com.ning.http.client.{ListenableFuture, Response}
+import com.ning.http.client.{AsyncHttpClient, ListenableFuture, Response}
+import io.gatling.core.util.IO.withCloseable
+import java.net.ServerSocket
+import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext}
+import scalaz.Scalaz._
+import scalaz._
 import spray.can.Http
 import spray.http._
 import spray.routing._
-import io.gatling.core.util.IO.withCloseable
-
-import scalaz.Scalaz._
-import scalaz._
-
-import org.specs2.matcher.MustMatchers
 
 /**
   * A mock server for testing gatling scenarios.
   */
 object MockServer {
+  import org.specs2.matcher.MustMatchers
 
   val host = "localhost"
 
   implicit val timeout : Timeout        = 5.seconds
   implicit val duration: FiniteDuration = timeout.duration
 
-  def apply(port: Int = findOpenPort()): MockServer =
-    new MockServer(port: Int) <| { _ start () }
+  def apply(port: Int = findOpenPort()) = new MockServer(port) ◃ { _ start () }
 
-  def findOpenPort(): Int =
-    withCloseable(new ServerSocket(0)) { _ getLocalPort () }
+  def findOpenPort(): Int = withCloseable(new ServerSocket(0)) { _ getLocalPort () }
 
   class MockServer(port: Int) {
 
@@ -50,34 +44,31 @@ object MockServer {
 
     def start() = Await ready (bind, duration)
 
-    def mkAgent(): Agent = Agent() <| openAgents.add
+    def mkAgent(): Agent = Agent() ◃ openAgents.add
 
     def stop(): Boolean = {
       openAgents foreach { _ stop () }
-      sys <| { _ shutdown () } <| { _ awaitTermination duration }
+      sys ◃ { _ shutdown () } ◃ { _ awaitTermination duration }
       true // Thus allowing us as last expression in test.
     }
 
     override def toString = s"MockServer on $uriString"
 
     case class Agent() {
-
-      import com.ning.http.client.AsyncHttpClient
+      implicit val ec = ExecutionContext.Implicits.global
 
       lazy val impl = new AsyncHttpClient()
 
       def stop(): Unit = impl close ()
 
-      implicit val ec = ExecutionContext.Implicits.global
-
-      def doGet(path: String): HttpResult =
-        { impl prepareGet mkUri(path) execute () } |> HttpResult
+      def doGet(path: String): HttpResult = {
+        impl prepareGet mkUri(path) execute ()
+      } ▹ HttpResult
     }
   }
 
   case class HttpResult(requestor: ListenableFuture[Response])
     extends MustMatchers {
-
     import org.specs2.matcher.Expectable
 
     lazy val resp       = requestor get ()
@@ -89,9 +80,8 @@ object MockServer {
     lazy val fail       = ok map { not _ }
     lazy val body       = bodyString aka bodyMsg
 
-    lazy val okAndBody: (Expectable[String]) = ok flatMap {
-      _ ? body | ((null: String) aka s"Request failed: $okMsg, $bodyMsg")
-    }
+    lazy val okAndBody: (Expectable[String]) =
+      ok flatMap { _ ? body | ((null: String) aka s"Request failed: $okMsg, $bodyMsg") }
 
     override def toString = resp.toString
   }
@@ -105,14 +95,11 @@ object MockServer {
 
     val parrot = (r: HttpRequest) ⇒ List(
       r.method.toString ++ " " ++ r.uri.toString,
-      r.headers map { _.toString } mkString "\n",
-      r.entity |> { e ⇒ e.isEmpty ? "" | e.asString }
+      r.headers ∘ { _.toString } mkString "\n",
+      r.entity ▹ { e ⇒ e.isEmpty ? "" | e.asString }
     ) mkString "\n"
 
-    def receive = runRoute {
-      onGet("ping") { ping } ~
-        onGet("parrot") { parrot }
-    }
+    def receive = runRoute { onGet("ping") { ping } ~ onGet("parrot") { parrot } }
   }
 }
 
