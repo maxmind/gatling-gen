@@ -1,15 +1,14 @@
 package com.maxmind.gatling.dev
 
 import java.util.concurrent.ThreadLocalRandom
-
-import com.maxmind.gatling.rng.FakeRandom
 import org.scalacheck.Gen.Parameters
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalameter.{Bench, Gen ⇒ MeterGen}
-
 import scala.util.Random
 import scalaz.Scalaz._
 import scalaz._
+
+import com.maxmind.gatling.rng.FakeRandom
 
 /** Single threaded generation micro benchmarks.
   *
@@ -26,7 +25,7 @@ object BenchmarkApp extends Bench.LocalTime {
 
   def bench(b: Int ⇒ Option[Int]): Unit = {
 
-    val sizedRange = MeterGen.range("size")(sizes._1, sizes._2, sizes._3)
+    val sizedRange = (MeterGen range "size")(sizes._1, sizes._2, sizes._3)
     val sizedRanges = for (size ← sizedRange) yield 0 until size
 
     using(sizedRanges) in { (r: Range) ⇒ r map { i ⇒ b(i) map 1.+ } }
@@ -34,7 +33,7 @@ object BenchmarkApp extends Bench.LocalTime {
 
   val intGen                = Arbitrary.arbitrary[Int]
   val javaUtilRandom        = new Random()
-  val javaThreadLocalRandom = ThreadLocalRandom.current()
+  val javaThreadLocalRandom = ThreadLocalRandom current ()
 
   performance of "Generation" in {
 

@@ -1,13 +1,12 @@
 package com.maxmind.gatling.gen
 
-import com.maxmind.gatling.rng.FakeRandom
 import io.gatling.core.feeder.Feeder
 import org.scalacheck.{Arbitrary, Gen, Prop}
-
 import scalaz.Scalaz._
 import scalaz._
 
-import com.maxmind.gatling.test.{SampleSize, BaseSpec}
+import com.maxmind.gatling.rng.FakeRandom
+import com.maxmind.gatling.test.{BaseSpec, SampleSize}
 
 class ThirdPartySpec extends BaseSpec {
 
@@ -27,14 +26,14 @@ class ThirdPartySpec extends BaseSpec {
     }
 
     "⋅ Use ScalaCheck properties with Specs2 matchers" >>
-      Prop.forAll(Gen pick(3, 0 to 9)) { _.sum must be_<=(9 + 8 + 7) }
+      Prop.forAll(Gen pick (3, 0 to 9)) { _.sum must be_<=(9 + 8 + 7) }
 
     "⋅ Use generators outside of ScalaCheck/Specs2 properties" >> {
       sampleSet(Gen choose (0, 9)) must contain(allOf(beBetween(0, 9)))
     }
 
     "⋅ Use generators outside of ScalaCheck/Specs2 properties" >> {
-        sampleSet(Gen choose(0, 9)) must contain(allOf(beBetween(0, 9)))
+      sampleSet(Gen choose (0, 9)) must contain(allOf(beBetween(0, 9)))
     }
 
   }

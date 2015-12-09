@@ -1,7 +1,5 @@
 package com.maxmind.gatling.dev
 
-import com.maxmind.gatling.test.MockServer
-import spray.http.Uri
 
 import scala.io.StdIn
 
