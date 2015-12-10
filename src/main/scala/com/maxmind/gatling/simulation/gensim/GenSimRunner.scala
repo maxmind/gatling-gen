@@ -18,7 +18,7 @@ object GenSimRunner {
 }
 
 class GenSimRunner(conf: GenSimRunnerConf) {
-  lazy val runner = conf.runnerConf.mkRunner()
+  lazy val runner = conf.runnerConf mkRunner ()
 
   def apply(): (Boolean, String) = runner()
 }
@@ -32,7 +32,6 @@ object GenSimRunnerConf {
     case Failure(f)    => throw f
     case Success(conf) => conf
   }).gatlinggen
-
 }
 
 case class GenSimRunnerConf(
@@ -53,5 +52,4 @@ case class GenSimRunnerConf(
   )
 
   def mkRunner(): GenSimRunner = new GenSimRunner(this)
-
 }

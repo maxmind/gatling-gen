@@ -7,6 +7,7 @@ import akka.util.Timeout
 import com.ning.http.client.{AsyncHttpClient, ListenableFuture, Response}
 import io.gatling.core.util.IO.withCloseable
 import java.net.ServerSocket
+import org.specs2.matcher.Expectable
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -67,9 +68,7 @@ object MockServer {
     }
   }
 
-  case class HttpResult(requestor: ListenableFuture[Response])
-    extends MustMatchers {
-    import org.specs2.matcher.Expectable
+  case class HttpResult(requestor: ListenableFuture[Response]) extends MustMatchers {
 
     lazy val resp       = requestor get ()
     lazy val bodyString = resp.getResponseBody
