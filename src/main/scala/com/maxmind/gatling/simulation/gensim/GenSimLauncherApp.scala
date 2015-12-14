@@ -19,7 +19,7 @@ case class GenSimLauncherAppOptions(
     @ExtraName("c") @HelpMessage("Simulation config file name, e.g. 'myapp'")
     confFileName: String,
 
-    @ExtraName("u") @HelpMessage("Base url if not using mock server")
+    @ExtraName("u") @HelpMessage("Base url, if not using mock server")
     baseUrl: String,
 
     @ExtraName("n") @HelpMessage("Canonical simulation class name")
@@ -36,13 +36,8 @@ case class GenSimLauncherAppOptions(
     simClassName = simClassName
   ))
 
-  def inMockServer(t: ⇒ Any) = MockServer() ◃ { _ ⇒ t } ◃ { _ stop () }
-
   val (isOk: Boolean, msg: String) =
-    if (shouldStartMockServer)
-      inMockServer { runner() }
-    else
-      runner()
+    shouldStartMockServer ? { MockServer() runFor { runner() } } | runner()
 
   println(s"# Simulation $msg.")
   sys.exit(isOk ? 0 | 1)

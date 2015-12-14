@@ -32,6 +32,7 @@ libraryDependencies                += "com.squants"                %% "squants" 
 libraryDependencies                += "com.storm-enroute"          %% "scalameter"                % "0.7"                               withSources() withJavadoc()
 libraryDependencies                += "com.typesafe.akka"          %% "akka-actor"                % akkaV                               withSources() withJavadoc()
 libraryDependencies                += "io.gatling.highcharts"      %  "gatling-charts-highcharts" % "2.1.7"                             withSources() withJavadoc()
+libraryDependencies                += "org.asynchttpclient"        % "async-http-client"          % "2.0.0-alpha21"                     withSources() withJavadoc()
 libraryDependencies                += "io.spray"                   %% "spray-can"                 % sprayV                              withSources() withJavadoc()
 libraryDependencies                += "io.spray"                   %% "spray-routing-shapeless2"  % sprayV                              withSources() withJavadoc()
 libraryDependencies                += "io.spray"                   %% "spray-json"                % "1.3.2"                             withSources() withJavadoc()
@@ -52,9 +53,10 @@ testOptions in Test                += Tests.Argument(TestFrameworks.Specs2, "htm
 logBuffered in Test                := true
 
 assemblyMergeStrategy in assembly := {
-    case PathList("org", "scalatools", xs @ _*) => MergeStrategy.first
-    case PathList(ys @ _*) if ys contains "derive" => MergeStrategy.first
-    case PathList("org", "threeten", "bp", zs @ _*) => MergeStrategy.last
-    case x => val oldStrategy = (assemblyMergeStrategy in assembly).value
-              oldStrategy(x)
+    case PathList("org", "scalatools", xs @ _*)                           => MergeStrategy.first
+    case PathList("org", "threeten", "bp", xs @ _*)                       => MergeStrategy.last
+    case PathList(xs @ _*) if xs contains "derive"                        => MergeStrategy.first
+    case PathList(xs @ _*) if xs contains "io.netty.versions.properties"  => MergeStrategy.filterDistinctLines
+    case x                                                                => val oldStrategy = (assemblyMergeStrategy in assembly).value
+                                                                             oldStrategy(x)
 }

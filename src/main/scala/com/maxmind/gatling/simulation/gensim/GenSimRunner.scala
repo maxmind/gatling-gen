@@ -7,10 +7,11 @@ import scala.util.{Failure, Success}
 import scalaz.Scalaz._
 import scalaz._
 
-import com.maxmind.gatling.simulation.{RunnerConfig, gensim}
+import com.maxmind.gatling.simulation.gensim
+import com.maxmind.gatling.simulation.runner.RunnerConf
 
 /**
-  * A simulation runner for the GenSim parameterized simulation.
+  * A simulation runner for the GenSim parametrized simulation.
   */
 
 object GenSimRunner {
@@ -18,13 +19,12 @@ object GenSimRunner {
 }
 
 class GenSimRunner(conf: GenSimRunnerConf) {
-  lazy val runner = conf.runnerConf mkRunner ()
+  lazy val runner = conf runnerConf ()
 
   def apply(): (Boolean, String) = runner()
 }
 
 object GenSimRunnerConf {
-
   lazy val simConf = System.getProperty("gatlinggen.conf", "") ◃
     { f ⇒ assume(!f.isEmpty, "Cannot find system property gatlinggen.conf") } ▹ get
 
@@ -37,13 +37,13 @@ object GenSimRunnerConf {
 case class GenSimRunnerConf(
     confFileName: String,
     baseUrl: String = "http://localhost:80",
-    outDir: Path = RunnerConfig.outDirSimResults,
+    outDir: Path = RunnerConf.outDirSimResults,
     simClassName: String = classOf[GenSim].getCanonicalName,
     simName: String = "gensim-anon",
     simDesc: String = s"GenSim bootstrap via GenSimRunner"
 ) {
 
-  lazy val runnerConf = RunnerConfig(
+  lazy val runnerConf = RunnerConf(
     simClassName = simClassName,
     outDir = outDir,
     props = HashMap("gatlinggen.http.base" → baseUrl),

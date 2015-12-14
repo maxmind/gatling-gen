@@ -4,8 +4,8 @@ import ammonite.ops._
 import scalaz.Scalaz._
 import scalaz._
 
-import com.maxmind.gatling.simulation.RunnerConfig.Verbose
 import com.maxmind.gatling.test.{BaseSpec, MockServerContext}
+import runner.{Runner, RunnerConf}
 
 class RunnerSpec extends BaseSpec with MockServerContext {
 
@@ -15,12 +15,11 @@ class RunnerSpec extends BaseSpec with MockServerContext {
 
   lazy val simClassName = classOf[BasicSimulationExample].getCanonicalName
 
-  lazy val runner: Runner = Runner(RunnerConfig(
+  lazy val runner: Runner = RunnerConf(
     outDir = Path(Path.makeTmp),
     props = HashMap("gatlinggen.http.base" → mockBaseUrl),
-    simClassName = simClassName,
-    verbosity = Verbose
-  ))
+    simClassName = simClassName
+  )()
 
   // Project the BasicSimulationExample onto a specs2 assertion.
   def run() = runner() match {

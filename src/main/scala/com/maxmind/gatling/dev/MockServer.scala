@@ -7,7 +7,7 @@ import akka.util.Timeout
 import com.ning.http.client.{AsyncHttpClient, ListenableFuture, Response}
 import io.gatling.core.util.IO.withCloseable
 import java.net.ServerSocket
-import org.specs2.matcher.Expectable
+import org.specs2.matcher.{Expectable, MustMatchers}
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
@@ -21,7 +21,6 @@ import spray.routing._
   * A mock server for testing gatling scenarios.
   */
 object MockServer {
-  import org.specs2.matcher.MustMatchers
 
   val host = "localhost"
 
@@ -42,6 +41,8 @@ object MockServer {
     lazy val uri        = (Uri() withHost host) withPort port
     lazy val uriString  = "http:" + uri.toString
     lazy val mkUri      = (uriSuffix: String) ⇒ s"$uriString$uriSuffix"
+
+    def runFor[T](t: ⇒ T): T = t ◃ { _ ⇒ stop() }
 
     def start() = Await ready (bind, duration)
 
