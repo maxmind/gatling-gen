@@ -11,6 +11,6 @@ _Inline/
 ext/PracRand/RNG_output
 ext/PracRand/RNG_test
 random-bytes.tmp
-sim-results
+experiments
 project/META-INF
 out/
