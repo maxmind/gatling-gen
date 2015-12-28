@@ -18,7 +18,7 @@ class ServerContextSpec extends BaseSpec with ServerContext {
 
   "Endpoints under MockServer specs2 context".title
 
-  "⋅ /ping → pong" >> {
+  "⋅ /ping → pong - basic example" >> {
     (server: Server) ⇒ (mkAgentState(server) doGet "/ping") {
       (r: HttpResult) ⇒ (r.ok must beTrue) and (r.body must_== "pong")
     } ▹ { _.asResult }

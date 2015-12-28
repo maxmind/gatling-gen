@@ -36,7 +36,7 @@ class ThirdPartySpec extends GatlingHttpTestHelper {
         HttpHeaderNames.Connection → List("close"),
         "Abc" → List("123")
       )
-    ) forBuilder {
+    ) forBuilder RequestMold {
       case (p: HttpProtocolBuilder, r: HttpRequestBuilder) ⇒ (
         p.disableAutoReferer
           connection "close",
@@ -50,11 +50,6 @@ class ThirdPartySpec extends GatlingHttpTestHelper {
 }
 
 abstract class GatlingHttpTestHelper extends BaseSpec {
-
-  /* A Gatling HTTP request mold is an HttpBuilder endomorphism. */
-  type RequestMold = HttpBuilder ⇒ HttpBuilder
-  type HttpBuilder = (HttpProtocolBuilder, HttpRequestBuilder)
-  type HeadersSpec = Map[String, List[String]]
 
   /* Required for setting configuration implicits. */
   GatlingConfiguration setUp ()
