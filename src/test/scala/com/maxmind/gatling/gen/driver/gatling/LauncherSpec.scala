@@ -29,7 +29,7 @@ class LauncherSpec extends BaseSpec with ServerContext {
 
   """⋅ And again
     Two simulations in same MockServerContext will not work, because complete reset of
-    the Akka actor system is required, but runnning in a different vm, we can run three.
+    the Akka actor system is required, but running in a different vm, we can run three.
 
     """ >> run()
 }

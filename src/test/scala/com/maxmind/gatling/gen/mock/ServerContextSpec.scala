@@ -31,11 +31,11 @@ class ServerContextSpec extends BaseSpec with ServerContext {
     mkAgentState(server) ▹ pingEndpoint ▹ quit
   }
 
-  "⋅ N ping → pongs, different agents" >> { (server: Server) ⇒
+  "⋅ N ping → pongs, N agents" >> { (server: Server) ⇒
     fillN { mkAgentState(server) ▹ pingEndpoint ▹ quit } foldMap identity[Result]
   }
 
-  "⋅ N ping → pongs, same agent" >> {
+  "⋅ N ping → pongs, 1 agent" >> {
     (server: Server) ⇒ fillN { pingEndpoint(_: AgentState) } ▹ {
       mkResultList ⇒ mkAgentState(server) ▹ {
         oldSt ⇒ (mkResultList foldl oldSt) { newSt ⇒ _ (newSt) } ▹ quit

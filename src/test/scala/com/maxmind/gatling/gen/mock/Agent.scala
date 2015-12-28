@@ -15,8 +15,7 @@ case class Agent(impl: AsyncHttpClient, mkUrl: Agent.UrlMaker) {
 
   /* Aync GET request on a uri, blocks only when asserting on the HttpResult */
   val doGet: String ⇒ (Agent, HttpResult) =
-    uri ⇒ { impl prepareGet mkUrl(uri) execute () } ▹ HttpResult.apply ▹
-      { h ⇒ (this copy ()) → h }
+    uri ⇒ { impl prepareGet mkUrl(uri) execute () } ▹ HttpResult.apply ▹ { copy() → _ }
 
   def stop(): Unit = impl close ()
 }
@@ -35,7 +34,7 @@ object Agent {
 
     def doGet(uri: String)(matcher: HttpResult ⇒ Specs2Match): AgentState =
       (agent doGet uri) ▹ { case (a: Agent, h: HttpResult) ⇒
-        AgentState(a, results :+ { () ⇒ matcher(h) })
+        (results :+ { () ⇒ matcher(h) }) ▹ { AgentState(a, _) }
       }
 
     def withResults(rs: ResultList): AgentState = copy(agent copy (), rs)
@@ -46,9 +45,8 @@ object Agent {
   object AgentState {
 
     /* An initial AgentState ready for 1st request */
-    def init(s: Server): AgentState =
-      { (s: Server) ⇒ Agent(mkUrl = s.mkUrl) } ∘ { _ → ∅[ResultList] } ∘
-        { case (a, r) ⇒ AgentState apply (a, r) } ▹ { _ (s) }
+    val init: Server ⇒ AgentState = { (s: Server) ⇒ Agent apply s.mkUrl } ∘
+      { _ → ∅[ResultList] } ∘ { apply _ }.tupled
   }
 }
 
