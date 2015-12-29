@@ -20,8 +20,12 @@ object RequestMold {
       using: (HttpProtocolBuilder, HttpRequestBuilder) ⇒
         (HttpProtocolBuilder, HttpRequestBuilder)
   ): HttpBuilder = RequestMold {
-    builder ⇒ { using(builder.protocolBuilder, builder.requestBuilder) } ▹
-      { HttpBuilder.apply _ }.tupled
+    new Endo[HttpBuilder](
+      builder ⇒ using(
+        builder.protocolBuilder,
+        builder.requestBuilder
+      ) ▹ { HttpBuilder.apply _ }.tupled
+    )
   }(from)
 
   /* Run an initial builder from some basic details and a mold */
@@ -32,7 +36,7 @@ object RequestMold {
   ) = (HttpBuilder.init ∘ build) (name, baseUrl, basePath)
 }
 
-case class RequestMold(build: HttpBuilder ⇒ HttpBuilder) {
+case class RequestMold(build: Endo[HttpBuilder]) {
 
   implicit val requestMoldEndo = new Endo[HttpBuilder](this.apply)
 
