@@ -32,6 +32,7 @@ abstract class GatlingHttpBaseSpec extends BaseSpec {
 
     /* Materialize a request mold into request ready for the wire, then test it */
     def forBuilder(builder: HttpBuilder): MatchResult[Any] = {
+
       builder match {
         case HttpBuilder(p, r) ⇒ {
           (r build (p.build, throttled = false)) ▹

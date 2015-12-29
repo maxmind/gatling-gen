@@ -9,18 +9,9 @@ class WebApiSpec extends BaseSpec {
 
   "Test the 'WebWeather' web service example".title
 
-  type WeatherAction = WebWeather.IpWeather.Get
   type IpAddress = String
 
-
-  case object WebWeather extends WebService {
-
-    case object IpWeather extends Endpoint {
-
-      case class Get(ip: IpAddress) extends Action
-    }
-  }
-
+  case class Get(ip: IpAddress) extends GetAction
 
   "⋅ Another test" >> {
     1 must_== 1
@@ -30,5 +21,12 @@ class WebApiSpec extends BaseSpec {
 /*
 ⋅•⚫⏺●⬤
 
+
+driver.action()
+
 WeatherAction.generate(IpAddress("127.0.0.1"))
+
+ipWeather
+
+
 */
