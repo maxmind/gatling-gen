@@ -1,21 +1,19 @@
 package com.maxmind.gatling.gen.test
 
+import collection.JavaConverters._
 import collection.mutable
 import com.ning.http.client.Realm
 import io.gatling.core.config.GatlingConfiguration
 import io.gatling.core.session._
 import io.gatling.core.validation
-import io.gatling.http.Predef._
 import java.util
 import org.specs2.execute.Result
 import org.specs2.matcher.MatchResult
-import spray.http.HttpMethod
-import collection.JavaConverters._
 import scalaz._
 import Scalaz._
+import spray.http.HttpMethod
 
 import com.maxmind.gatling.gen.driver.gatling.HttpBuilder
-import com.maxmind.gatling.gen.driver.gatling._
 
 /**
   * Base class for testing gatling level http building
@@ -29,11 +27,18 @@ abstract class GatlingHttpBaseSpec extends BaseSpec {
   case class ExpectRequest(
       expectMethod: HttpMethod,
       expectRealm: Expression[Realm],
-      expectHeaders: HeadersSpec
+      expectHeaders: Map[String, List[String]]
   ) {
-    type ReqTest = Request ⇒ MatchResult[Any]
 
-    val testRequest: ReqTest = { r ⇒
+    /* Materialize a request mold into request ready for the wire, then test it */
+    def forBuilder(builder: HttpBuilder): MatchResult[Any] = {
+      builder match {
+        case HttpBuilder(p, r) ⇒ {
+          (r build (p.build, throttled = false)) ▹
+            { req ⇒ eval { s ⇒ req build ("bar", s) } }
+        }.get.ahcRequest
+      }
+    } ▹ { r ⇒
 
       val testMethod = r.getMethod aka "method" must_== expectMethod.value
 
@@ -49,16 +54,6 @@ abstract class GatlingHttpBaseSpec extends BaseSpec {
       (List[Result](testMethod, testHeaders, testRealm) foldMap identity) must
         beSuccessful
     }
-
-    /* Materialize a request mold into request ready for the wire, then test it */
-    def forBuilder(builder: HttpBuilder): MatchResult[Any] = {
-      builder match {
-        case HttpBuilder(p, r) ⇒ {
-          (r build (p.build, throttled = false)) ▹
-            { req ⇒ eval { s ⇒ req build ("bar", s) } }
-        }.get.ahcRequest
-      }
-    } ▹ testRequest
   }
 
   val aSession = { "baz" ++ (_: String) } ▹ { f ⇒ Session(f("session"), f("user")) }

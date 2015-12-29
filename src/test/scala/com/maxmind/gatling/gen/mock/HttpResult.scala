@@ -11,7 +11,7 @@ import spray.http.StatusCode
 /**
   * A result of an HTTP request by a mock server agent
   */
-  case class HttpResult(requestor: ListenableFuture[Response]) extends MustMatchers {
+case class HttpResult(requestor: ListenableFuture[Response]) extends MustMatchers {
 
   lazy val resp       = requestor get ()
   lazy val bodyString = resp.getResponseBody

@@ -8,6 +8,5 @@ package object gatling {
   type Name = String
   type BaseUrl = String
   type Segment = String
-  type HeadersSpec = Map[String, List[String]]
 
 }
