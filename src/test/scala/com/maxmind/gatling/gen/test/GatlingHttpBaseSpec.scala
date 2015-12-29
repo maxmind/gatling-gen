@@ -7,6 +7,7 @@ import io.gatling.core.session._
 import io.gatling.core.validation
 import io.gatling.http.Predef._
 import java.util
+import org.specs2.execute.Result
 import org.specs2.matcher.MatchResult
 import spray.http.HttpMethod
 import collection.JavaConverters._
@@ -45,7 +46,8 @@ abstract class GatlingHttpBaseSpec extends BaseSpec {
             (actual.get.toString must_== expected.get.toString)
       }
 
-      List(testMethod, testHeaders, testRealm) reduceLeft { _ and _ }
+      (List[Result](testMethod, testHeaders, testRealm) foldMap identity) must
+        beSuccessful
     }
 
     /* Materialize a request mold into request ready for the wire, then test it */
