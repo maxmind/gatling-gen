@@ -50,7 +50,7 @@ import com.maxmind.gatling.gen.driver.gatling.LauncherArgs._
   /* T is the type of the process- the object created on CliSettings apply. */
   def apply[T](starter: CliProcessStarter[T]): T = {
 
-    def createFiles() = {
+    def setupFilesystem() = {
       conf.internalDir ◃ { rm ! _ } ◃ { d ⇒ assert(!exists.!(d), { s"Can' rm '$d'" }) }
 
       for (d ← Seq(
@@ -76,7 +76,7 @@ import com.maxmind.gatling.gen.driver.gatling.LauncherArgs._
 
     starter ▹ {
 
-      createFiles()
+      setupFilesystem()
       println(
         (ls ! Path("/home/eilara/me/IdeaProjects/gatling-gen/experiments"))
           map { _.toString } mkString "\n"
@@ -113,8 +113,7 @@ import com.maxmind.gatling.gen.driver.gatling.LauncherArgs._
 
 object LauncherArgs {
 
-//  def apply(baseUrl: String): LauncherArgs =
-//    LauncherArgs().baseUrl set baseUrl
+  def apply(baseUrl: String): LauncherArgs = LauncherArgs().baseUrl set baseUrl
 
   type CliArgs = Seq[String]
   type CliEnv = Map[String, String]

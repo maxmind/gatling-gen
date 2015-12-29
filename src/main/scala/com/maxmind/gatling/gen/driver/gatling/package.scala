@@ -5,7 +5,9 @@ import io.gatling.http.request.builder.HttpRequestBuilder
 
 package object gatling {
 
-  type HttpBuilder = (HttpProtocolBuilder, HttpRequestBuilder)
+  type Name = String
+  type BaseUrl = String
+  type Segment = String
   type HeadersSpec = Map[String, List[String]]
 
 }

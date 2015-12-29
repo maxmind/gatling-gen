@@ -13,7 +13,7 @@ import Scalaz._
 case class Agent(impl: AsyncHttpClient, mkUrl: Agent.UrlMaker) {
   implicit val ec = ExecutionContext.Implicits.global
 
-  /* Aync GET request on a uri, blocks only when asserting on the HttpResult */
+  /* Async GET request on a uri, blocks only when asserting on the HttpResult */
   val doGet: String ⇒ (Agent, HttpResult) =
     uri ⇒ { impl prepareGet mkUrl(uri) execute () } ▹ HttpResult.apply ▹ { copy() → _ }
 
